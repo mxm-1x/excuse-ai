@@ -1,7 +1,22 @@
 import streamlit as st
 import time
+# -- MONKEYPATCH FOR PYTHON 3.14 + STREAMLIT CLOUD + CHROMADB BUG --
 import sys
 import os
+
+# Streamlit Cloud uses Python 3.14 which breaks Pydantic v1 (used by ChromaDB/CrewAI).
+# This patch forces Pydantic v1 to understand the type of `env_file_encoding`.
+try:
+    import pydantic.v1.fields
+    original_infer = pydantic.v1.fields.ModelField.infer
+    def patched_infer(*args, **kwargs):
+        if kwargs.get('name') == 'env_file_encoding' or (args and args[0] == 'env_file_encoding'):
+            kwargs['annotation'] = str
+        return original_infer(*args, **kwargs)
+    pydantic.v1.fields.ModelField.infer = patched_infer
+except ImportError:
+    pass
+# -------------------------------------------------------------------
 
 # Add the backend directory to path so we can import the crew
 sys.path.append(os.path.join(os.path.dirname(__file__), "backend"))
